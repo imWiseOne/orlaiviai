@@ -189,10 +189,23 @@
     const nextBtn = document.getElementById('nextBtn');
     const scoreSpan = document.getElementById('score');
 
-    // Function to fetch a random image URL from LoremFlickr for a given aircraft.
+    // Function to fetch a random image URL from Openverse for a given aircraft.
     async function fetchRandomImageURL(query) {
-      // Using LoremFlickr with "aircraft" plus the aircraft name as tags.
-      return `https://loremflickr.com/600/400/aircraft,${encodeURIComponent(query)}?random=${Math.random()}`;
+      const endpoint = `https://api.openverse.engineering/v1/images/?q=${encodeURIComponent("aircraft " + query)}&page_size=50`;
+      try {
+        const response = await fetch(endpoint);
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          // Pick a random image from the returned results.
+          const randomImage = data.results[Math.floor(Math.random() * data.results.length)];
+          return randomImage.url;
+        } else {
+          return "https://via.placeholder.com/600x400?text=No+Image";
+        }
+      } catch (error) {
+        console.error("Error fetching image from Openverse:", error);
+        return "https://via.placeholder.com/600x400?text=No+Image";
+      }
     }
 
     // Create quiz questions.
