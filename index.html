@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aircraft Quiz</title>
+  <style>
+    /* Basic styling */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      line-height: 1.6;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    #selection, #quiz, #result {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+    .aircraft-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    label {
+      cursor: pointer;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .option-btn {
+      display: block;
+      width: 100%;
+      margin: 8px 0;
+      padding: 10px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .correct {
+      background-color: #4CAF50;
+      color: white;
+    }
+    .incorrect {
+      background-color: #f44336;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Aircraft Quiz</h1>
+
+  <!-- Aircraft Selection Screen -->
+  <div id="selection">
+    <h2>Select Aircraft</h2>
+    <div class="aircraft-list" id="aircraftList">
+      <!-- Checkboxes will be populated here -->
+    </div>
+    <div style="text-align: center;">
+      <button id="startQuizBtn">Start Quiz</button>
+    </div>
+  </div>
+
+  <!-- Quiz Screen -->
+  <div id="quiz" style="display:none;">
+    <h2>Question <span id="currentQuestionNumber">1</span>/30</h2>
+    <div id="imageContainer" style="text-align:center; margin-bottom: 15px;">
+      <img id="aircraftImage" src="" alt="Aircraft Image" />
+    </div>
+    <div id="options">
+      <!-- Multiple-choice options will go here -->
+    </div>
+    <div style="text-align: center; margin-top: 15px;">
+      <button id="nextBtn" style="display:none;">Next</button>
+    </div>
+  </div>
+
+  <!-- Quiz Result Screen -->
+  <div id="result" style="display:none; text-align: center;">
+    <h2>Your Score: <span id="score"></span>/30</h2>
+    <button id="restartBtn">Restart</button>
+  </div>
+
+  <script>
+    // List of 32 aircraft – update this list as needed.
+    const aircraftData = [
+      "Boeing 737",
+      "Boeing 747",
+      "Boeing 767",
+      "Boeing 777",
+      "Boeing 787 Dreamliner",
+      "Airbus A320",
+      "Airbus A330",
+      "Airbus A350",
+      "Airbus A380",
+      "Embraer E190",
+      "Bombardier CRJ700",
+      "ATR 72",
+      "Sukhoi Superjet 100",
+      "COMAC ARJ21",
+      "Fokker 100",
+      "McDonnell Douglas MD-80",
+      "McDonnell Douglas DC-10",
+      "Lockheed L-1011 TriStar",
+      "Antonov An-148",
+      "Tupolev Tu-204",
+      "Ilyushin Il-96",
+      "Dassault Falcon 7X",
+      "Gulfstream G650",
+      "Cessna Citation X",
+      "Piper PA-28 Cherokee",
+      "Cirrus SR22",
+      "Beechcraft King Air",
+      "Embraer Phenom 300",
+      "Learjet 45",
+      "Hawker 800",
+      "de Havilland Canada Dash 8",
+      "Saab 340"
+    ];
+
+    // Populate the aircraft selection list.
+    const aircraftListDiv = document.getElementById('aircraftList');
+    aircraftData.forEach(aircraft => {
+      const label = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = "checkbox";
+      checkbox.value = aircraft;
+      checkbox.checked = true; // default to checked
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(" " + aircraft));
+      aircraftListDiv.appendChild(label);
+    });
+
+    // Global variables for quiz state.
+    const startQuizBtn = document.getElementById('startQuizBtn');
+    const quizDiv = document.getElementById('quiz');
+    const selectionDiv = document.getElementById('selection');
+    const resultDiv = document.getElementById('result');
+    const imageElement = document.getElementById('aircraftImage');
+    const optionsDiv = document.getElementById('options');
+    const nextBtn = document.getElementById('nextBtn');
+    const currentQuestionNumberSpan = document.getElementById('currentQuestionNumber');
+    const scoreSpan = document.getElementById('score');
+    const restartBtn = document.getElementById('restartBtn');
+
+    let selectedAircraft = [];
+    let quizQuestions = [];
+    let currentQuestionIndex = 0;
+    let score = 0;
+    const totalQuestions = 30;
+    const optionsPerQuestion = 4;
+
+    // Function to fetch image URL from Wikipedia.
+    async function fetchImageURL(aircraftName) {
+      const endpoint = `https://en.wikipedia.org/w/api.php?origin=*&action=query&titles=${encodeURIComponent(aircraftName)}&prop=pageimages&pithumbsize=500&format=json`;
+      try {
+        const response = await fetch(endpoint);
+        const data = await response.json();
+        const pages = data.query.pages;
+        const pageId = Object.keys(pages)[0];
+        if (pages[pageId].thumbnail && pages[pageId].thumbnail.source) {
+          return pages[pageId].thumbnail.source;
+        } else {
+          // Return a placeholder image if not available.
+          return "https://via.placeholder.com/500x300?text=No+Image";
+        }
+      } catch (error) {
+        console.error("Error fetching image:", error);
+        return "https://via.placeholder.com/500x300?text=No+Image";
+      }
+    }
+
+    // Create quiz questions based on the selected aircraft.
+    function generateQuizQuestions() {
+      quizQuestions = [];
+      for (let i = 0; i < totalQuestions; i++) {
+        // Randomly choose a correct aircraft from the selected list.
+        const correctAircraft = selectedAircraft[Math.floor(Math.random() * selectedAircraft.length)];
+        quizQuestions.push({
+          correct: correctAircraft,
+          imageURL: "", // will be fetched later
+          options: [] // will be filled with answer choices
+        });
+      }
+    }
+
+    // Prepare options for a question (including distractors).
+    function prepareOptions(question) {
+      const options = new Set();
+      options.add(question.correct);
+      // Add distractors – if fewer aircraft are selected than optionsPerQuestion, use what you have.
+      while (options.size < Math.min(optionsPerQuestion, selectedAircraft.length)) {
+        const randomAircraft = selectedAircraft[Math.floor(Math.random() * selectedAircraft.length)];
+        options.add(randomAircraft);
+      }
+      // Shuffle the options.
+      return Array.from(options).sort(() => Math.random() - 0.5);
+    }
+
+    // Display the current question.
+    async function displayQuestion() {
+      const question = quizQuestions[currentQuestionIndex];
+      currentQuestionNumberSpan.textContent = currentQuestionIndex + 1;
+      optionsDiv.innerHTML = "";
+      nextBtn.style.display = "none";
+
+      // If we haven’t fetched the image URL yet, do so.
+      if (!question.imageURL) {
+        question.imageURL = await fetchImageURL(question.correct);
+      }
+      imageElement.src = question.imageURL;
+
+      // Prepare answer options if not already set.
+      if (question.options.length === 0) {
+        question.options = prepareOptions(question);
+      }
+
+      // Create buttons for each option.
+      question.options.forEach(option => {
+        const btn = document.createElement('button');
+        btn.className = "option-btn";
+        btn.textContent = option;
+        btn.onclick = () => checkAnswer(btn, question.correct);
+        optionsDiv.appendChild(btn);
+      });
+    }
+
+    // Check the answer when a user selects an option.
+    function checkAnswer(selectedBtn, correctAnswer) {
+      // Disable all option buttons.
+      const optionButtons = document.querySelectorAll('.option-btn');
+      optionButtons.forEach(btn => btn.disabled = true);
+
+      if (selectedBtn.textContent === correctAnswer) {
+        selectedBtn.classList.add('correct');
+        score++;
+      } else {
+        selectedBtn.classList.add('incorrect');
+        // Highlight the correct answer.
+        optionButtons.forEach(btn => {
+          if (btn.textContent === correctAnswer) {
+            btn.classList.add('correct');
+          }
+        });
+      }
+      nextBtn.style.display = "inline-block";
+    }
+
+    // Move to the next question or finish the quiz.
+    function nextQuestion() {
+      currentQuestionIndex++;
+      if (currentQuestionIndex < totalQuestions) {
+        displayQuestion();
+      } else {
+        showResult();
+      }
+    }
+
+    // Show the final result.
+    function showResult() {
+      quizDiv.style.display = "none";
+      resultDiv.style.display = "block";
+      scoreSpan.textContent = score;
+    }
+
+    // Event listener: Start Quiz.
+    startQuizBtn.addEventListener('click', () => {
+      // Gather selected aircraft.
+      const checkboxes = document.querySelectorAll('#aircraftList input[type="checkbox"]');
+      selectedAircraft = [];
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          selectedAircraft.push(cb.value);
+        }
+      });
+      if (selectedAircraft.length === 0) {
+        alert("Please select at least one aircraft.");
+        return;
+      }
+      // Initialize quiz state.
+      currentQuestionIndex = 0;
+      score = 0;
+      generateQuizQuestions();
+      selectionDiv.style.display = "none";
+      quizDiv.style.display = "block";
+      resultDiv.style.display = "none";
+      displayQuestion();
+    });
+
+    // Event listener: Next Question.
+    nextBtn.addEventListener('click', nextQuestion);
+
+    // Event listener: Restart Quiz.
+    restartBtn.addEventListener('click', () => {
+      selectionDiv.style.display = "block";
+      quizDiv.style.display = "none";
+      resultDiv.style.display = "none";
+    });
+  </script>
+</body>
+</html>
