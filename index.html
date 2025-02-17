@@ -189,10 +189,10 @@
     const nextBtn = document.getElementById('nextBtn');
     const scoreSpan = document.getElementById('score');
 
-    // Function to fetch a random image URL from Unsplash for a given aircraft.
+    // Function to fetch a random image URL from LoremFlickr for a given aircraft.
     async function fetchRandomImageURL(query) {
-      // Unsplash random image service.
-      return `https://source.unsplash.com/600x400/?${encodeURIComponent(query)}&sig=${Math.random()}`;
+      // Using LoremFlickr with "aircraft" plus the aircraft name as tags.
+      return `https://loremflickr.com/600/400/aircraft,${encodeURIComponent(query)}?random=${Math.random()}`;
     }
 
     // Create quiz questions.
